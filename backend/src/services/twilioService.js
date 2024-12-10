@@ -1,52 +1,42 @@
-import Twilio from 'twilio';
-import { config } from '../config/config.js';
+import twilio from 'twilio';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class TwilioService {
     constructor() {
-        this.client = new Twilio(config.twilio.accountSid, config.twilio.authToken);
+        this.client = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        this.phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+        this.baseUrl = process.env.BASE_URL;
     }
 
-    async makeCall(to) {
+    async makeCall(phoneNumber) {
         try {
             // Validate and format phone number for Morocco
-            if (!to.startsWith('+')) {
-                // If number starts with 0, remove it and add Morocco country code
-                to = to.startsWith('0') ? '+212' + to.substring(1) : '+212' + to;
+            if (!phoneNumber.startsWith('+')) {
+                phoneNumber = phoneNumber.startsWith('0') ? '+212' + phoneNumber.substring(1) : '+212' + phoneNumber;
             }
 
-            console.log('Attempting to make call to:', to);
-            console.log('Using Twilio number:', config.twilio.phoneNumber);
+            console.log('Making call with:', {
+                to: phoneNumber,
+                from: this.phoneNumber,
+                baseUrl: this.baseUrl
+            });
 
-            // Create TwiML
-            const twiml = new Twilio.twiml.VoiceResponse();
-            twiml.say({ voice: 'alice', language: 'fr-FR' }, 'Bonjour! Ceci est un appel test de votre application.');
-
+            // Create an outbound call using the Twilio client
             const call = await this.client.calls.create({
-                twiml: twiml.toString(),
-                to: to,
-                from: config.twilio.phoneNumber,
-            });
-            
-            console.log('Call details:', {
-                sid: call.sid,
-                status: call.status,
-                direction: call.direction,
-                from: call.from,
-                to: call.to
+                to: phoneNumber,
+                from: this.phoneNumber,
+                url: `${this.baseUrl}/twiml`,  // URL that returns TwiML for call handling
+                statusCallback: `${this.baseUrl}/call/status`,
+                statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+                statusCallbackMethod: 'POST'
             });
 
-            // Immediately fetch call status
-            const callStatus = await this.getCallStatus(call.sid);
-            console.log('Initial call status:', callStatus);
-
+            console.log('Call initiated:', call.sid);
             return call;
         } catch (error) {
-            console.error('Detailed error making call:', {
-                message: error.message,
-                code: error.code,
-                moreInfo: error.moreInfo,
-                status: error.status
-            });
+            console.error('Error making call:', error);
             throw error;
         }
     }
@@ -57,6 +47,61 @@ class TwilioService {
             return call.status;
         } catch (error) {
             console.error('Error getting call status:', error);
+            throw error;
+        }
+    }
+
+    async getCall(callSid) {
+        try {
+            return await this.client.calls(callSid).fetch();
+        } catch (error) {
+            console.error('Error getting call:', error);
+            throw error;
+        }
+    }
+
+    async getRecording(recordingSid) {
+        try {
+            return await this.client.recordings(recordingSid).fetch();
+        } catch (error) {
+            console.error('Error getting recording:', error);
+            throw error;
+        }
+    }
+
+    async getTranscription(transcriptionSid) {
+        try {
+            return await this.client.transcriptions(transcriptionSid).fetch();
+        } catch (error) {
+            console.error('Error getting transcription:', error);
+            throw error;
+        }
+    }
+
+    async getCallRecordings(callSid) {
+        try {
+            return await this.client.recordings.list({ callSid: callSid });
+        } catch (error) {
+            console.error('Error getting call recordings:', error);
+            throw error;
+        }
+    }
+
+    async getCallTranscriptions(callSid) {
+        try {
+            const recordings = await this.getCallRecordings(callSid);
+            const transcriptions = [];
+            
+            for (const recording of recordings) {
+                const recordingTranscriptions = await this.client.transcriptions.list({ 
+                    recordingSid: recording.sid 
+                });
+                transcriptions.push(...recordingTranscriptions);
+            }
+            
+            return transcriptions;
+        } catch (error) {
+            console.error('Error getting call transcriptions:', error);
             throw error;
         }
     }

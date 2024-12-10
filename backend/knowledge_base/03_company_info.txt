@@ -1,0 +1,45 @@
+Company Information and Services:
+
+About Us:
+We are a leading technology company specializing in innovative solutions for businesses and consumers. Our mission is to make technology accessible and beneficial for everyone.
+
+Core Services:
+1. Software Solutions
+   - Custom application development
+   - Cloud services and hosting
+   - AI and machine learning integration
+   - Mobile app development
+
+2. Consulting Services
+   - Technical architecture design
+   - Digital transformation
+   - AI strategy and implementation
+   - Security assessments
+
+3. Support Services
+   - 24/7 technical support
+   - Training and documentation
+   - System maintenance
+   - Performance optimization
+
+Business Hours:
+- Monday to Friday: 9:00 AM - 6:00 PM EST
+- Weekend support available for premium customers
+- Holiday schedule available on website
+
+Contact Information:
+- Main Office: (555) 123-4567
+- Support Line: (555) 123-4568
+- Email: support@company.com
+- Website: www.company.com
+
+Locations:
+- Headquarters: Silicon Valley, CA
+- Regional Offices: New York, London, Singapore
+
+Company Values:
+1. Innovation: Pushing boundaries in technology
+2. Quality: Delivering excellence in every project
+3. Customer Focus: Understanding and meeting client needs
+4. Integrity: Maintaining highest ethical standards
+5. Collaboration: Working together for better solutions
