@@ -165,6 +165,62 @@ class OpenAIService {
         }
     }
 
+    async processAudioPreview(audioFilePath, language = 'english') {
+        try {
+            console.log('Processing audio preview:', audioFilePath);
+            
+            // Read the audio file and convert to base64
+            const audioBuffer = await fs.readFile(audioFilePath);
+            const base64Audio = audioBuffer.toString('base64');
+
+            // Map language to system prompts
+            const systemPrompts = {
+                'arabic': 'أنت مساعد ودود ومفيد. يرجى الرد دائمًا باللغة العربية فقط.',
+                'english': 'You are a helpful assistant. Always respond in English only.',
+                'french': 'Vous êtes un assistant utile. Veuillez toujours répondre en français uniquement.'
+            };
+
+            const languagePrompt = systemPrompts[language.toLowerCase()] || systemPrompts.english;
+
+            // Generate response using GPT-4 with audio preview
+            const completion = await this.openai.chat.completions.create({
+                model: "gpt-4o-audio-preview",
+                modalities: ["text", "audio"],
+                audio: { voice: "alloy", format: "wav" },
+                messages: [
+                    {
+                        role: "system",
+                        content: languagePrompt
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "What is in this recording?" },
+                            { type: "input_audio", input_audio: { data: base64Audio, format: "wav" }}
+                        ]
+                    }
+                ]
+            });
+
+            const response = completion.choices[0].message.content;
+            console.log('AI Response:', response);
+
+            // Get the audio response
+            const audioResponse = completion.choices[0].message.audio.data;
+            console.log('Audio response generated');
+
+            return {
+                success: true,
+                audio: audioResponse, // Already in base64 format
+                response,
+                language
+            };
+        } catch (error) {
+            console.error('Error in processAudioPreview:', error);
+            throw error;
+        }
+    }
+
     async transcribeAudio(fileStream) {
         try {
             const response = await this.openai.audio.transcriptions.create({

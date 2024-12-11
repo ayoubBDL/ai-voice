@@ -47,7 +47,7 @@ await fastify.register(fastifyCors, {
 // API routes (with /api prefix)
 await fastify.register(async function (fastify) {
     await fastify.register(callRoutes, { prefix: '/api' });
-    await fastify.register(audioRoutes, { prefix: '' }); // Audio routes have their own prefixes
+    await fastify.register(audioRoutes, { prefix: '/api' }); // Add /api prefix to audio routes
 });
 
 // Webhook routes (no prefix)

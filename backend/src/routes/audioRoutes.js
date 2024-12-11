@@ -3,7 +3,11 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+
+// Configure ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegStatic);
 
 export default async function routes(fastify, options) {
     // WebSocket endpoint for media streaming
@@ -57,53 +61,122 @@ export default async function routes(fastify, options) {
     });
 
     // Chat with audio endpoint
-    fastify.post('/api/chat-with-audio', async (request, reply) => {
-        try {
-            const data = await request.file();
-            
-            if (!data) {
-                throw new Error('No audio file provided');
-            }
-
-            console.log('Received file:', {
-                fieldname: data.fieldname,
-                filename: data.filename,
-                mimetype: data.mimetype
-            });
-
-            // Create a temporary file path
-            const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${data.filename}`);
-            
-            // Create a readable stream from the file buffer
-            const chunks = [];
-            for await (const chunk of data.file) {
-                chunks.push(chunk);
-            }
-            const buffer = Buffer.concat(chunks);
-
-            // Write the buffer to a temporary file
-            await fs.writeFile(tempFilePath, buffer);
-            console.log('Wrote file to:', tempFilePath);
-
+    fastify.post('/chat-with-audio', {
+        config: {
+            multipart: true
+        },
+        handler: async (request, reply) => {
             try {
-                // Get language from form fields
-                const language = request.body?.language || 'english';
-                console.log('Using language:', language);
+                const data = await request.file();
+                
+                if (!data) {
+                    throw new Error('No audio file provided');
+                }
 
-                // Process the audio file
-                const result = await openaiService.processAudioChat(tempFilePath, language);
-                return result;
-            } finally {
-                // Clean up: remove the temporary file
-                await fs.unlink(tempFilePath).catch(console.error);
+                console.log('Received file:', {
+                    fieldname: data.fieldname,
+                    filename: data.filename,
+                    mimetype: data.mimetype
+                });
+
+                // Create a temporary file path
+                const tempFilePath = path.join(os.tmpdir(), `${Date.now()}-${data.filename}`);
+                
+                // Create a readable stream from the file buffer
+                const chunks = [];
+                for await (const chunk of data.file) {
+                    chunks.push(chunk);
+                }
+                const buffer = Buffer.concat(chunks);
+
+                // Write the buffer to a temporary file
+                await fs.writeFile(tempFilePath, buffer);
+                console.log('Wrote file to:', tempFilePath);
+
+                try {
+                    // Get language from form fields
+                    const language = request.body?.language || 'english';
+                    console.log('Using language:', language);
+
+                    // Process the audio file
+                    const result = await openaiService.processAudioChat(tempFilePath, language);
+                    return result;
+                } finally {
+                    // Clean up: remove the temporary file
+                    await fs.unlink(tempFilePath).catch(console.error);
+                }
+            } catch (error) {
+                console.error('Error in chat-with-audio:', error);
+                request.log.error(error);
+                reply.status(500).send({
+                    success: false,
+                    error: error.message || 'Failed to process audio chat'
+                });
             }
-        } catch (error) {
-            console.error('Error in chat-with-audio:', error);
-            request.log.error(error);
-            reply.status(500).send({
-                success: false,
-                error: error.message || 'Failed to process audio chat'
-            });
+        }
+    });
+
+    // Audio preview endpoint using GPT-4V
+    fastify.post('/audio-preview', {
+        config: {
+            multipart: true
+        },
+        handler: async (request, reply) => {
+            try {
+                const chunks = [];
+                const file = await request.file();
+                
+                // Create temporary files for both input and output
+                const tempInputPath = path.join(os.tmpdir(), `input-${Date.now()}.webm`);
+                const tempOutputPath = path.join(os.tmpdir(), `output-${Date.now()}.wav`);
+
+                // Read the uploaded file
+                for await (const chunk of file.file) {
+                    chunks.push(chunk);
+                }
+                const buffer = Buffer.concat(chunks);
+
+                // Write the buffer to a temporary input file
+                await fs.writeFile(tempInputPath, buffer);
+                console.log('Wrote input file to:', tempInputPath);
+
+                try {
+                    // Convert to WAV using ffmpeg
+                    await new Promise((resolve, reject) => {
+                        ffmpeg(tempInputPath)
+                            .toFormat('wav')
+                            .on('error', (err) => {
+                                console.error('Error converting audio:', err);
+                                reject(err);
+                            })
+                            .on('end', () => {
+                                console.log('Audio conversion finished');
+                                resolve();
+                            })
+                            .save(tempOutputPath);
+                    });
+
+                    // Get language from form fields
+                    const language = request.body?.language || 'english';
+                    console.log('Using language:', language);
+
+                    // Process the converted WAV file with GPT-4V
+                    const result = await openaiService.processAudioPreview(tempOutputPath, language);
+                    return result;
+                } finally {
+                    // Clean up: remove both temporary files
+                    await Promise.all([
+                        fs.unlink(tempInputPath).catch(console.error),
+                        fs.unlink(tempOutputPath).catch(console.error)
+                    ]);
+                }
+            } catch (error) {
+                console.error('Error in audio-preview:', error);
+                return reply.status(500).send({
+                    success: false,
+                    error: error.message || 'Failed to process audio preview'
+                });
+            }
         }
     });
 }

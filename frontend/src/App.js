@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import CallCenter from './components/CallCenter';
 import CallHistory from './components/CallHistory';
 import AudioChat from './components/AudioChat';
+import AudioPreview from './components/AudioPreview';
 import '@fontsource/inter';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/" element={<CallCenter />} />
                 <Route path="/history" element={<CallHistory />} />
                 <Route path="/audio-chat" element={<AudioChat />} />
+                <Route path="/preview" element={<AudioPreview />} />
               </Routes>
             </VStack>
           </Container>

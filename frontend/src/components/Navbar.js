@@ -37,6 +37,7 @@ const Navbar = () => {
         <NavLink to="/">Call Center</NavLink>
         <NavLink to="/history">Call History</NavLink>
         <NavLink to="/audio-chat">Audio Chat</NavLink>
+        <NavLink to="/preview">Audio Preview</NavLink>
       </Flex>
     </Box>
   );
